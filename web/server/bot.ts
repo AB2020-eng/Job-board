@@ -18,6 +18,8 @@ bot.on('callback_query', async (ctx) => {
   const [action, idStr] = data.split(':')
   const jobId = String(idStr || '').replace(/[^0-9]/g, '')
   if (!jobId) return ctx.answerCbQuery('Invalid')
+  // Early ack to avoid Telegram timeouts on long operations
+  try { await ctx.answerCbQuery('Processing…') } catch {}
   if (action === 'approve') {
     const { jobs } = await getSheets()
     await jobs.loadHeaderRow()
@@ -30,7 +32,10 @@ bot.on('callback_query', async (ctx) => {
     const link = deepLink(jobId)
     const keyboard = { reply_markup: { inline_keyboard: [[{ text: '💼 Apply via Mini App', url: link }]] } }
     await bot.telegram.sendMessage(String(process.env.TELEGRAM_CHANNEL_ID), text, keyboard)
-    await ctx.answerCbQuery('Approved')
+    try {
+      await ctx.editMessageReplyMarkup({ inline_keyboard: [] } as any)
+      await ctx.answerCbQuery('Approved')
+    } catch {}
   } else if (action === 'reject') {
     const { jobs } = await getSheets()
     await jobs.loadHeaderRow()
@@ -39,7 +44,10 @@ bot.on('callback_query', async (ctx) => {
     if (!row) return ctx.answerCbQuery('Not found')
     ;(row as any).Status = 'rejected'
     await row.save()
-    await ctx.answerCbQuery('Rejected')
+    try {
+      await ctx.editMessageReplyMarkup({ inline_keyboard: [] } as any)
+      await ctx.answerCbQuery('Rejected')
+    } catch {}
   } else {
     await ctx.answerCbQuery('Unknown')
   }
