@@ -9,7 +9,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   const base = (process.env.BOT_PUBLIC_URL || '').replace(/\/+$/, '')
   if (!base) return res.status(400).json({ error: 'missing_PUBLIC_URL' })
+  try {
+    const u = new URL(base)
+    const host = u.hostname.toLowerCase()
+    if (host.includes('telegram.org') || host === 't.me') {
+      return res.status(400).json({ error: 'invalid_PUBLIC_URL', details: 'Use your Vercel domain, not telegram.org/t.me' })
+    }
+  } catch {
+    return res.status(400).json({ error: 'invalid_PUBLIC_URL' })
+  }
   const url = `${base}/api/telegram/webhook/${process.env.BOT_WEBHOOK_SECRET || ''}`
-  await bot.telegram.setWebhook(url)
-  res.json({ ok: true, url })
+  await bot.telegram.setWebhook(url, {
+    allowed_updates: ['callback_query', 'message'],
+    drop_pending_updates: false
+  } as any)
+  const info = await bot.telegram.getWebhookInfo()
+  res.json({ ok: true, url, info })
 }
