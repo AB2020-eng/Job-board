@@ -1,0 +1,29 @@
+{
+  "name": "job-board-web",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^14.2.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "google-spreadsheet": "^4.1.1",
+    "google-auth-library": "^9.14.1",
+    "telegraf": "^4.15.3",
+    "formidable": "^3.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "@types/node": "^20.11.30",
+    "@types/react": "^18.2.65",
+    "@types/react-dom": "^18.2.21"
+  }
+}

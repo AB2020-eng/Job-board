@@ -1,0 +1,29 @@
+import { GoogleSpreadsheet } from 'google-spreadsheet'
+import { GoogleAuth } from 'google-auth-library'
+
+function normalizeSpreadsheetId(input?: string) {
+  if (!input) return undefined
+  const s = input.trim().replace(/^`|`$/g, '')
+  if (s.includes('/spreadsheets/d/')) {
+    const m = s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)
+    return m?.[1] || undefined
+  }
+  return s
+}
+
+export async function getSheets() {
+  const id = normalizeSpreadsheetId(process.env.GOOGLE_SPREADSHEET_ID || process.env.GOOGLE_SHEETS_ID)
+  if (!id) throw new Error('Missing spreadsheet id')
+  const auth = new GoogleAuth({
+    credentials: {
+      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL as string,
+      private_key: ((process.env.GOOGLE_PRIVATE_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) as string).replace(/\\n/g, '\n')
+    },
+    scopes: ['https://www.googleapis.com/auth/spreadsheets']
+  })
+  const doc = new GoogleSpreadsheet(id, auth as any)
+  await doc.loadInfo()
+  const jobs = doc.sheetsByTitle['Jobs']
+  const applications = doc.sheetsByTitle['Applications']
+  return { doc, jobs, applications }
+}
