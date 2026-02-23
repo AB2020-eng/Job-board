@@ -6,6 +6,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const id = String(req.query.id || '').replace(/[^0-9]/g, '')
   try {
     const { jobs } = await getSheets()
+    await jobs.loadHeaderRow()
     const rows = await jobs.getRows()
     const row = rows.find((r: any) => String((r as any).ID) === id && String((r as any).Status).toLowerCase() === 'active') as any
     if (!row) return res.status(404).json({ error: 'not_found' })

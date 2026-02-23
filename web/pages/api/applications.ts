@@ -29,6 +29,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const seekerUsername = user?.username
   try {
     const { jobs, applications } = await getSheets()
+    await jobs.loadHeaderRow()
+    await applications.loadHeaderRow()
     const rows = await jobs.getRows()
     const row = rows.find((r: any) => String((r as any).ID) === jobId) as any
     if (!row) return res.status(404).json({ error: 'job_not_found' })

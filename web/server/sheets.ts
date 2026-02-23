@@ -42,10 +42,15 @@ export async function getSheets() {
     try {
       await ws.loadHeaderRow()
     } catch {}
-    const hasHeaders = Array.isArray((ws as any).headerValues) && (ws as any).headerValues.length > 0 && !(ws as any).headerValues.every((h: any) => !h)
+    const hasHeaders =
+      Array.isArray((ws as any).headerValues) &&
+      (ws as any).headerValues.length > 0 &&
+      !(ws as any).headerValues.every((h: any) => !h)
     if (!hasHeaders) {
       await ws.setHeaderRow(headers)
     }
+    // Always ensure headerValues are loaded before returning
+    await ws.loadHeaderRow()
   }
   await ensureHeaders(jobs, ['ID', 'Employer', 'Title', 'Description', 'Status', 'Created_At', 'Expires_At'])
   await ensureHeaders(applications, ['Job_ID', 'Seeker_Username', 'CV_File_ID', 'Applied_At'])

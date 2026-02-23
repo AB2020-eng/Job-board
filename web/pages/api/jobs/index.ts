@@ -19,6 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   try {
     const { jobs } = await getSheets()
+    await jobs.loadHeaderRow()
     const id = Date.now()
     const now = new Date()
     const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)

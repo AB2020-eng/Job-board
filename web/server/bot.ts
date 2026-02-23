@@ -20,6 +20,7 @@ bot.on('callback_query', async (ctx) => {
   if (!jobId) return ctx.answerCbQuery('Invalid')
   if (action === 'approve') {
     const { jobs } = await getSheets()
+    await jobs.loadHeaderRow()
     const rows = await jobs.getRows()
     const row = rows.find((r: any) => String((r as any).ID) === jobId) as any
     if (!row) return ctx.answerCbQuery('Not found')
@@ -32,6 +33,7 @@ bot.on('callback_query', async (ctx) => {
     await ctx.answerCbQuery('Approved')
   } else if (action === 'reject') {
     const { jobs } = await getSheets()
+    await jobs.loadHeaderRow()
     const rows = await jobs.getRows()
     const row = rows.find((r: any) => String((r as any).ID) === jobId) as any
     if (!row) return ctx.answerCbQuery('Not found')
