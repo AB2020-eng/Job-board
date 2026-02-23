@@ -6,8 +6,18 @@ import { notifyAdmin } from '../../../server/bot'
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end()
   const { title, description, employer_id, employer_username, tg_init_data } = req.body || {}
-  const ok = verifyInitData(String(tg_init_data || ''), process.env.TELEGRAM_BOT_TOKEN as string)
-  if (!ok) return res.status(400).json({ error: 'invalid_init_data' })
+  const token = process.env.TELEGRAM_BOT_TOKEN as string | undefined
+  const allowUnverified = String(process.env.ALLOW_UNVERIFIED_POSTS || '').toLowerCase() === 'true'
+  let ok = false
+  if (token) {
+    ok = verifyInitData(String(tg_init_data || ''), token)
+  }
+  if (!ok && !allowUnverified) {
+    return res.status(400).json({ error: 'invalid_init_data' })
+  }
+  if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || (!process.env.GOOGLE_SPREADSHEET_ID && !process.env.GOOGLE_SHEETS_ID)) {
+    return res.status(500).json({ error: 'missing_env', details: 'Google Sheets credentials or Spreadsheet ID not configured' })
+  }
   try {
     const { jobs } = await getSheets()
     const id = Date.now()

@@ -25,7 +25,10 @@ export default function EmployerForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-      if (!res.ok) throw new Error('Failed to submit')
+      if (!res.ok) {
+        const t = await res.text().catch(()=> '')
+        throw new Error(t || 'Failed to submit')
+      }
       setStatus('done')
       setMessage('Submitted for approval')
       setTitle('')

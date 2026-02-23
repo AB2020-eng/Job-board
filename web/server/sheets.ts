@@ -1,4 +1,4 @@
-import { GoogleSpreadsheet } from 'google-spreadsheet'
+import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet } from 'google-spreadsheet'
 import { GoogleAuth } from 'google-auth-library'
 
 function normalizeSpreadsheetId(input?: string) {
@@ -23,7 +23,19 @@ export async function getSheets() {
   })
   const doc = new GoogleSpreadsheet(id, auth as any)
   await doc.loadInfo()
-  const jobs = doc.sheetsByTitle['Jobs']
-  const applications = doc.sheetsByTitle['Applications']
+  let jobs: GoogleSpreadsheetWorksheet | undefined = doc.sheetsByTitle['Jobs']
+  let applications: GoogleSpreadsheetWorksheet | undefined = doc.sheetsByTitle['Applications']
+  if (!jobs) {
+    jobs = await doc.addSheet({
+      title: 'Jobs',
+      headerValues: ['ID', 'Employer', 'Title', 'Description', 'Status', 'Created_At', 'Expires_At']
+    })
+  }
+  if (!applications) {
+    applications = await doc.addSheet({
+      title: 'Applications',
+      headerValues: ['Job_ID', 'Seeker_Username', 'CV_File_ID', 'Applied_At']
+    })
+  }
   return { doc, jobs, applications }
 }
