@@ -6,7 +6,7 @@ const botToken = process.env.TELEGRAM_BOT_TOKEN as string
 export const bot = new Telegraf(botToken)
 
 function deepLink(jobId: string | number) {
-  return `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}/app?startapp=jobId_${jobId}.`
+  return `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}/app?startapp=jobId_${jobId}`
 }
 
 bot.on('callback_query', async (ctx) => {

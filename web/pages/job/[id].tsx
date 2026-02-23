@@ -41,11 +41,12 @@ export default function JobDetail() {
 
   if (!job) return <div>Loading...</div>
 
-  const isExpired = job?.expiresAt && new Date(job.expiresAt) < new Date()
+  const expiresStr = job?.Expires_At ?? job?.expiresAt
+  const isExpired = Boolean(expiresStr && new Date(expiresStr) < new Date())
   return (
     <div style={{ padding: 12, display: 'grid', gap: 8 }}>
-      <h2>{job.title} {isExpired ? '🚫 EXPIRED' : ''}</h2>
-      <p>{job.description}</p>
+      <h2>{job.Title || job.title} {isExpired ? '🚫 EXPIRED' : ''}</h2>
+      <p>{job.Description || job.description}</p>
       <input type="file" accept=".pdf,.doc,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword" onChange={e=>setFile(e.target.files?.[0]||null)} />
       <button onClick={onApply} disabled={!file || status==='uploading' || isExpired}>Apply</button>
       {status==='done' ? <div>Application sent</div> : null}
