@@ -1,6 +1,6 @@
 import { Telegraf, Markup } from 'telegraf'
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getSheets } from './sheets'
+import { updateJobStatus, getJobById } from './sheets'
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN as string
 export const bot = new Telegraf(botToken)
@@ -9,54 +9,53 @@ function deepLink(jobId: string | number) {
   return `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}/app?startapp=jobId_${jobId}`
 }
 
-bot.on('callback_query', async (ctx) => {
-  const fromId = ctx.from?.id
-  if (String(fromId) !== String(process.env.TELEGRAM_ADMIN_ID)) {
-    return ctx.answerCbQuery('Not allowed')
+// Guard: admin only
+bot.action(/^(approve|reject)_(.+)$/, async (ctx, next) => {
+  if (String(ctx.from?.id) !== String(process.env.TELEGRAM_ADMIN_ID)) {
+    try { await ctx.answerCbQuery('🚫 You are not authorized.') } catch {}
+    return
   }
-  const data = (ctx.callbackQuery as any)?.data || ''
-  const [action, idStr] = data.split(':')
-  const jobId = String(idStr || '').replace(/[^0-9]/g, '')
-  if (!jobId) return ctx.answerCbQuery('Invalid')
-  // Early ack to avoid Telegram timeouts on long operations
   try { await ctx.answerCbQuery('Processing…') } catch {}
-  if (action === 'approve') {
-    const { jobs } = await getSheets()
-    await jobs.loadHeaderRow()
-    const rows = await jobs.getRows()
-    const row = rows.find((r: any) => String((r as any).ID) === jobId) as any
-    if (!row) return ctx.answerCbQuery('Not found')
-    ;(row as any).Status = 'active'
-    await row.save()
-    const text = `💼 ${(row as any).Title}\n${(row as any).Description}\n\nApply via Mini App`
+  return next()
+})
+
+// Approve handler
+bot.action(/^approve_(.+)$/, async (ctx) => {
+  const jobId = (ctx.match as RegExpMatchArray)[1]
+  try {
+    await updateJobStatus(jobId, 'active')
+    const job = await getJobById(jobId)
+    const text = `💼 ${job.Title}\n${job.Description}\n\nApply via Mini App`
     const link = deepLink(jobId)
-    const keyboard = { reply_markup: { inline_keyboard: [[{ text: '💼 Apply via Mini App', url: link }]] } }
-    await bot.telegram.sendMessage(String(process.env.TELEGRAM_CHANNEL_ID), text, keyboard)
+    const keyboard = { reply_markup: { inline_keyboard: [[{ text: '💼 Apply via Mini App', url: link }]] } } as any
+    await ctx.telegram.sendMessage(String(process.env.TELEGRAM_CHANNEL_ID), text, keyboard)
     try {
-      await ctx.editMessageReplyMarkup({ inline_keyboard: [] } as any)
-      await ctx.answerCbQuery('Approved')
+      await ctx.editMessageText(`✅ Approved: ${job.Title}`)
     } catch {}
-  } else if (action === 'reject') {
-    const { jobs } = await getSheets()
-    await jobs.loadHeaderRow()
-    const rows = await jobs.getRows()
-    const row = rows.find((r: any) => String((r as any).ID) === jobId) as any
-    if (!row) return ctx.answerCbQuery('Not found')
-    ;(row as any).Status = 'rejected'
-    await row.save()
+    try { await ctx.answerCbQuery('✅ Job Approved & Posted!') } catch {}
+  } catch (e: any) {
+    try { await ctx.answerCbQuery(e?.message || 'Error') } catch {}
+  }
+})
+
+// Reject handler
+bot.action(/^reject_(.+)$/, async (ctx) => {
+  const jobId = (ctx.match as RegExpMatchArray)[1]
+  try {
+    await updateJobStatus(jobId, 'rejected')
     try {
-      await ctx.editMessageReplyMarkup({ inline_keyboard: [] } as any)
-      await ctx.answerCbQuery('Rejected')
+      await ctx.editMessageText('❌ This job post was rejected.')
     } catch {}
-  } else {
-    await ctx.answerCbQuery('Unknown')
+    try { await ctx.answerCbQuery('❌ Job Rejected') } catch {}
+  } catch (e: any) {
+    try { await ctx.answerCbQuery(e?.message || 'Error') } catch {}
   }
 })
 
 export function notifyAdmin(job: { id: number | string; title: string; description: string; employer_username?: string }) {
   const text = `New Job: ${job.title} by @${job.employer_username || 'unknown'}\n${String(job.description || '').slice(0, 200)}`
-  const approveData = `approve:${job.id}`
-  const rejectData = `reject:${job.id}`
+  const approveData = `approve_${job.id}`
+  const rejectData = `reject_${job.id}`
   const keyboard = Markup.inlineKeyboard([
     [Markup.button.callback('✅ Approve', approveData), Markup.button.callback('❌ Reject', rejectData)]
   ])

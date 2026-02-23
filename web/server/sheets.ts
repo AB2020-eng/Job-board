@@ -89,3 +89,31 @@ export async function addJobRow(record: {
     }
   }
 }
+
+export async function updateJobStatus(jobId: string, status: string) {
+  const { jobs } = await getSheets()
+  await jobs.loadHeaderRow()
+  const rows = await jobs.getRows()
+  const row = rows.find((r: any) => String((r as any).ID) === String(jobId)) as any
+  if (!row) throw new Error('not_found')
+  ;(row as any).Status = status
+  await row.save()
+  return row
+}
+
+export async function getJobById(jobId: string) {
+  const { jobs } = await getSheets()
+  await jobs.loadHeaderRow()
+  const rows = await jobs.getRows()
+  const row = rows.find((r: any) => String((r as any).ID) === String(jobId)) as any
+  if (!row) throw new Error('not_found')
+  return {
+    ID: String((row as any).ID),
+    Employer: (row as any).Employer,
+    Title: (row as any).Title,
+    Description: (row as any).Description,
+    Status: (row as any).Status,
+    Created_At: (row as any).Created_At,
+    Expires_At: (row as any).Expires_At
+  }
+}
