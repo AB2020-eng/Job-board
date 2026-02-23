@@ -9,8 +9,8 @@ function deepLink(jobId: string | number) {
   return `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}/app?startapp=jobId_${jobId}`
 }
 
-// Guard: admin only
-bot.action(/^(approve|reject)_(.+)$/, async (ctx, next) => {
+// Guard: admin only (supports both approve_<id> and approve:<id>)
+bot.action(/^(approve|reject)[:_](.+)$/, async (ctx, next) => {
   if (String(ctx.from?.id) !== String(process.env.TELEGRAM_ADMIN_ID)) {
     try { await ctx.answerCbQuery('🚫 You are not authorized.') } catch {}
     return
@@ -20,7 +20,7 @@ bot.action(/^(approve|reject)_(.+)$/, async (ctx, next) => {
 })
 
 // Approve handler
-bot.action(/^approve_(.+)$/, async (ctx) => {
+bot.action(/^approve[:_](.+)$/, async (ctx) => {
   const jobId = (ctx.match as RegExpMatchArray)[1]
   try {
     await updateJobStatus(jobId, 'active')
@@ -39,7 +39,7 @@ bot.action(/^approve_(.+)$/, async (ctx) => {
 })
 
 // Reject handler
-bot.action(/^reject_(.+)$/, async (ctx) => {
+bot.action(/^reject[:_](.+)$/, async (ctx) => {
   const jobId = (ctx.match as RegExpMatchArray)[1]
   try {
     await updateJobStatus(jobId, 'rejected')
