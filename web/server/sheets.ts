@@ -37,5 +37,17 @@ export async function getSheets() {
       headerValues: ['Job_ID', 'Seeker_Username', 'CV_File_ID', 'Applied_At']
     })
   }
+  // Ensure headers exist on existing sheets where header row may be empty
+  const ensureHeaders = async (ws: GoogleSpreadsheetWorksheet, headers: string[]) => {
+    try {
+      await ws.loadHeaderRow()
+    } catch {}
+    const hasHeaders = Array.isArray((ws as any).headerValues) && (ws as any).headerValues.length > 0 && !(ws as any).headerValues.every((h: any) => !h)
+    if (!hasHeaders) {
+      await ws.setHeaderRow(headers)
+    }
+  }
+  await ensureHeaders(jobs, ['ID', 'Employer', 'Title', 'Description', 'Status', 'Created_At', 'Expires_At'])
+  await ensureHeaders(applications, ['Job_ID', 'Seeker_Username', 'CV_File_ID', 'Applied_At'])
   return { doc, jobs, applications }
 }
