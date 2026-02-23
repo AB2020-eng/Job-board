@@ -23,15 +23,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const id = Date.now()
     const now = new Date()
     const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-    await jobs.addRow({
-      ID: String(id),
-      Employer: String(employer_id || ''),
-      Title: title,
-      Description: description,
-      Status: 'pending',
-      Created_At: now.toISOString(),
-      Expires_At: expires.toISOString()
-    })
+    try {
+      await jobs.addRow({
+        ID: String(id),
+        Employer: String(employer_id || ''),
+        Title: title,
+        Description: description,
+        Status: 'pending',
+        Created_At: now.toISOString(),
+        Expires_At: expires.toISOString()
+      })
+    } catch (err: any) {
+      const msg = String(err?.message || '')
+      if (msg.includes('Header values are not yet loaded') || msg.includes('No values in the header row')) {
+        await jobs.setHeaderRow(['ID', 'Employer', 'Title', 'Description', 'Status', 'Created_At', 'Expires_At'])
+        await jobs.loadHeaderRow()
+        await jobs.addRow({
+          ID: String(id),
+          Employer: String(employer_id || ''),
+          Title: title,
+          Description: description,
+          Status: 'pending',
+          Created_At: now.toISOString(),
+          Expires_At: expires.toISOString()
+        })
+      } else {
+        throw err
+      }
+    }
     await notifyAdmin({ id, title, description, employer_username })
     res.json({ ok: true, id })
   } catch (e: any) {

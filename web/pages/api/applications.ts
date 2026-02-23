@@ -38,12 +38,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const caption = `New applicant for ${(row as any).Title}\nContact: @${seekerUsername || 'unknown'}`
     const sent = await bot.telegram.sendDocument(Number(employerId), { source: f.filepath, filename: f.originalFilename || 'cv' }, { caption })
     const fileId = (sent as any)?.document?.file_id || ''
-    await applications.addRow({
-      Job_ID: String(jobId),
-      Seeker_Username: seekerUsername || '',
-      CV_File_ID: fileId,
-      Applied_At: new Date().toISOString()
-    })
+    try {
+      await applications.addRow({
+        Job_ID: String(jobId),
+        Seeker_Username: seekerUsername || '',
+        CV_File_ID: fileId,
+        Applied_At: new Date().toISOString()
+      })
+    } catch (err: any) {
+      const msg = String(err?.message || '')
+      if (msg.includes('Header values are not yet loaded') || msg.includes('No values in the header row')) {
+        await applications.setHeaderRow(['Job_ID', 'Seeker_Username', 'CV_File_ID', 'Applied_At'])
+        await applications.loadHeaderRow()
+        await applications.addRow({
+          Job_ID: String(jobId),
+          Seeker_Username: seekerUsername || '',
+          CV_File_ID: fileId,
+          Applied_At: new Date().toISOString()
+        })
+      } else {
+        throw err
+      }
+    }
     res.json({ ok: true })
   } catch (e: any) {
     res.status(500).json({ error: e.message || 'sheet_error' })

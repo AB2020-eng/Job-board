@@ -11,6 +11,9 @@ function normalizeSpreadsheetId(input?: string) {
   return s
 }
 
+export const JOBS_HEADERS = ['ID', 'Employer', 'Title', 'Description', 'Status', 'Created_At', 'Expires_At']
+export const APPLICATIONS_HEADERS = ['Job_ID', 'Seeker_Username', 'CV_File_ID', 'Applied_At']
+
 export async function getSheets() {
   const id = normalizeSpreadsheetId(process.env.GOOGLE_SPREADSHEET_ID || process.env.GOOGLE_SHEETS_ID)
   if (!id) throw new Error('Missing spreadsheet id')
@@ -28,13 +31,13 @@ export async function getSheets() {
   if (!jobs) {
     jobs = await doc.addSheet({
       title: 'Jobs',
-      headerValues: ['ID', 'Employer', 'Title', 'Description', 'Status', 'Created_At', 'Expires_At']
+      headerValues: JOBS_HEADERS
     })
   }
   if (!applications) {
     applications = await doc.addSheet({
       title: 'Applications',
-      headerValues: ['Job_ID', 'Seeker_Username', 'CV_File_ID', 'Applied_At']
+      headerValues: APPLICATIONS_HEADERS
     })
   }
   // Ensure headers exist on existing sheets where header row may be empty
@@ -42,17 +45,22 @@ export async function getSheets() {
     try {
       await ws.loadHeaderRow()
     } catch {}
-    const hasHeaders =
-      Array.isArray((ws as any).headerValues) &&
-      (ws as any).headerValues.length > 0 &&
-      !(ws as any).headerValues.every((h: any) => !h)
-    if (!hasHeaders) {
+    const current: string[] = Array.isArray((ws as any).headerValues) ? (ws as any).headerValues : []
+    const hasAny = current.length > 0 && !current.every((h: any) => !h)
+    if (!hasAny) {
       await ws.setHeaderRow(headers)
+      await ws.loadHeaderRow()
+    } else {
+      // Ensure all expected headers exist; if missing, update header row with union
+      const missing = headers.filter((h) => !current.includes(h))
+      if (missing.length) {
+        const union = Array.from(new Set([...current, ...headers]))
+        await ws.setHeaderRow(union)
+      }
+      await ws.loadHeaderRow()
     }
-    // Always ensure headerValues are loaded before returning
-    await ws.loadHeaderRow()
   }
-  await ensureHeaders(jobs, ['ID', 'Employer', 'Title', 'Description', 'Status', 'Created_At', 'Expires_At'])
-  await ensureHeaders(applications, ['Job_ID', 'Seeker_Username', 'CV_File_ID', 'Applied_At'])
+  await ensureHeaders(jobs, JOBS_HEADERS)
+  await ensureHeaders(applications, APPLICATIONS_HEADERS)
   return { doc, jobs, applications }
 }
