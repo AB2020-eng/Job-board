@@ -64,3 +64,28 @@ export async function getSheets() {
   await ensureHeaders(applications, APPLICATIONS_HEADERS)
   return { doc, jobs, applications }
 }
+
+export async function addJobRow(record: {
+  ID: string
+  Employer: string
+  Title: string
+  Description: string
+  Status: string
+  Created_At: string
+  Expires_At: string
+}) {
+  const { jobs } = await getSheets()
+  await jobs.loadHeaderRow()
+  try {
+    await jobs.addRow(record as any)
+  } catch (err: any) {
+    const msg = String(err?.message || '')
+    if (msg.includes('Header values are not yet loaded') || msg.includes('No values in the header row')) {
+      await jobs.setHeaderRow(JOBS_HEADERS)
+      await jobs.loadHeaderRow()
+      await jobs.addRow(record as any)
+    } else {
+      throw err
+    }
+  }
+}
