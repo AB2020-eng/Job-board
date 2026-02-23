@@ -7,12 +7,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).end()
   const { title, description, employer_id, employer_username, tg_init_data } = req.body || {}
   const token = process.env.TELEGRAM_BOT_TOKEN as string | undefined
-  const allowUnverified = String(process.env.ALLOW_UNVERIFIED_POSTS || '').toLowerCase() === 'true'
-  let ok = false
-  if (token) {
-    ok = verifyInitData(String(tg_init_data || ''), token)
-  }
-  if (!ok && !allowUnverified) {
+  const allowUnverified = String(process.env.ALLOW_UNVERIFIED_POSTS ?? 'true').toLowerCase() === 'true'
+  const initDataStr = String(tg_init_data || '')
+  const shouldVerify = Boolean(token && initDataStr)
+  const ok = shouldVerify ? verifyInitData(initDataStr, token as string) : false
+  if (shouldVerify && !ok && !allowUnverified) {
     return res.status(400).json({ error: 'invalid_init_data' })
   }
   if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || (!process.env.GOOGLE_SPREADSHEET_ID && !process.env.GOOGLE_SHEETS_ID)) {
