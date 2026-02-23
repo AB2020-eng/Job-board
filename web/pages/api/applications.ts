@@ -10,7 +10,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).end()
   const form = formidable({})
   const { fields, files } = await new Promise<{ fields: formidable.Fields; files: formidable.Files }>((resolve, reject) => {
-    form.parse(req, (err, fields, files) => {
+    form.parse(req, (err: any, fields: formidable.Fields, files: formidable.Files) => {
       if (err) reject(err)
       else resolve({ fields, files })
     })
@@ -20,8 +20,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!ok) return res.status(400).json({ error: 'invalid_init_data' })
   const jobId = String(fields.job_id || '').replace(/[^0-9]/g, '')
   if (!jobId) return res.status(400).json({ error: 'bad_request' })
-  const f = files.file as formidable.File
-  if (!f || !f.filepath) return res.status(400).json({ error: 'missing_file' })
+  const uploaded = (files as formidable.Files)['file'] as formidable.File | formidable.File[] | undefined
+  const f = Array.isArray(uploaded) ? uploaded[0] : uploaded
+  if (!f || !(f as formidable.File).filepath) return res.status(400).json({ error: 'missing_file' })
   const init = new URLSearchParams(tgInit)
   const userStr = init.get('user') || ''
   const user = userStr ? JSON.parse(userStr) : undefined
