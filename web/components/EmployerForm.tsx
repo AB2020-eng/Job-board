@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { getUser, getInitDataUnsafe } from '../lib/telegram'
+import { getUser, getInitDataString } from '../lib/telegram'
 
 export default function EmployerForm() {
   const [title, setTitle] = useState('')
@@ -12,13 +12,12 @@ export default function EmployerForm() {
     setStatus('submitting')
     setMessage('')
     const user = getUser()
-    const initData = getInitDataUnsafe()
     const payload = {
       title,
       description,
       employer_id: user?.id,
       employer_username: user?.username,
-      tg_init_data: typeof window !== 'undefined' ? window.Telegram?.WebApp?.initData : ''
+      tg_init_data: getInitDataString()
     }
     try {
       const res = await fetch(`/api/jobs`, {

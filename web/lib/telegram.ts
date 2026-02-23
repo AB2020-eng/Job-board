@@ -3,6 +3,11 @@ export function getInitDataUnsafe() {
   return window.Telegram?.WebApp?.initDataUnsafe
 }
 
+export function getInitDataString() {
+  if (typeof window === 'undefined') return ''
+  return window.Telegram?.WebApp?.initData || ''
+}
+
 export function getStartParam() {
   const init = getInitDataUnsafe()
   return init?.start_param

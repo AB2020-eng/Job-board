@@ -1,5 +1,6 @@
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
+import { getInitDataString } from '../../lib/telegram'
 
 export default function JobDetail() {
   const router = useRouter()
@@ -27,7 +28,7 @@ export default function JobDetail() {
     const form = new FormData()
     form.append('job_id', String(job.id))
     form.append('file', file)
-    const initData = typeof window !== 'undefined' ? window.Telegram?.WebApp?.initData : ''
+    const initData = getInitDataString()
     form.append('tg_init_data', initData || '')
     try {
       const res = await fetch(`/api/applications`, { method: 'POST', body: form })
