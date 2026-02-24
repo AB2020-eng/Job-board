@@ -52,8 +52,9 @@ bot.action(/^approve[:_](.+)$/, async (ctx) => {
     try { await ctx.answerCbQuery('✅ Job Approved & Posted!') } catch {}
   } catch (e: any) {
     // Surface error in admin message if possible
-    try { await ctx.editMessageText(`❗ Error approving: ${e?.message || 'Unknown error'}`) } catch {}
-    try { await ctx.answerCbQuery(e?.message || 'Error') } catch {}
+    const detail = e?.response?.description || e?.message || 'Unknown error'
+    try { await ctx.editMessageText(`❗ Error approving: ${detail}`) } catch {}
+    try { await ctx.answerCbQuery(detail) } catch {}
   }
 })
 
@@ -67,8 +68,9 @@ bot.action(/^reject[:_](.+)$/, async (ctx) => {
     } catch {}
     try { await ctx.answerCbQuery('❌ Job Rejected') } catch {}
   } catch (e: any) {
-    try { await ctx.editMessageText(`❗ Error rejecting: ${e?.message || 'Unknown error'}`) } catch {}
-    try { await ctx.answerCbQuery(e?.message || 'Error') } catch {}
+    const detail = e?.response?.description || e?.message || 'Unknown error'
+    try { await ctx.editMessageText(`❗ Error rejecting: ${detail}`) } catch {}
+    try { await ctx.answerCbQuery(detail) } catch {}
   }
 })
 
