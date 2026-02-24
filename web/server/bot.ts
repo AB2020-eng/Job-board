@@ -10,7 +10,7 @@ function deepLink(jobId: string | number) {
 }
 
 async function resolveChannelId(ctx: any): Promise<number | string> {
-  const raw = String(process.env.TELEGRAM_CHANNEL_ID || '').trim()
+  const raw = String(process.env.TELEGRAM_CHANNEL_ID || '-1003779130300').trim()
   if (!raw) throw new Error('TELEGRAM_CHANNEL_ID missing')
   if (raw.startsWith('@')) {
     try {

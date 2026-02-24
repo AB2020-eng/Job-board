@@ -20,6 +20,8 @@ const {
   GOOGLE_PRIVATE_KEY
 } = process.env
 
+const EFFECTIVE_CHANNEL_ID = (TELEGRAM_CHANNEL_ID && TELEGRAM_CHANNEL_ID.trim()) || '-1003779130300'
+
 const bot = new Telegraf(TELEGRAM_BOT_TOKEN as string)
 const app = express()
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } })
@@ -109,7 +111,7 @@ bot.on('callback_query', async (ctx) => {
         inline_keyboard: [[{ text: '💼 Apply via Mini App', url: link }]]
       }
     }
-    await bot.telegram.sendMessage(String(TELEGRAM_CHANNEL_ID), postText, keyboard)
+    await bot.telegram.sendMessage(String(EFFECTIVE_CHANNEL_ID), postText, keyboard)
     await ctx.answerCbQuery('Approved')
   } else if (action === 'reject') {
     const { jobs } = await getSheets()
