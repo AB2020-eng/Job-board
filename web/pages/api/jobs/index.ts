@@ -14,8 +14,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (shouldVerify && !ok && !allowUnverified) {
     return res.status(400).json({ error: 'invalid_init_data' })
   }
-  if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || (!process.env.GOOGLE_SPREADSHEET_ID && !process.env.GOOGLE_SHEETS_ID)) {
-    return res.status(500).json({ error: 'missing_env', details: 'Google Sheets credentials or Spreadsheet ID not configured' })
+  const hasJson = Boolean(process.env.GOOGLE_CREDENTIALS_JSON)
+  const hasEmailKey = Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && (process.env.GOOGLE_PRIVATE_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY))
+  const hasSheetId = Boolean(process.env.GOOGLE_SPREADSHEET_ID || process.env.GOOGLE_SHEETS_ID)
+  if (!hasSheetId || (!hasJson && !hasEmailKey)) {
+    return res.status(500).json({ error: 'missing_env', details: 'Missing Google credentials (JSON or email+key) or Spreadsheet ID' })
   }
   try {
     const id = Date.now()
