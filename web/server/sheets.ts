@@ -17,11 +17,26 @@ export const APPLICATIONS_HEADERS = ['Job_ID', 'Seeker_Username', 'CV_File_ID', 
 export async function getSheets() {
   const id = normalizeSpreadsheetId(process.env.GOOGLE_SPREADSHEET_ID || process.env.GOOGLE_SHEETS_ID)
   if (!id) throw new Error('Missing spreadsheet id')
+  const json = process.env.GOOGLE_CREDENTIALS_JSON
+  let client_email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL as string | undefined
+  let private_key = process.env.GOOGLE_PRIVATE_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || ''
+  if (json) {
+    try {
+      const parsed = JSON.parse(json)
+      client_email = parsed.client_email || client_email
+      private_key = parsed.private_key || private_key
+    } catch {}
+  }
+  if (!client_email) throw new Error('Missing GOOGLE_SERVICE_ACCOUNT_EMAIL')
+  const strip = (s: string) => s.replace(/^\s+|\s+$/g, '').replace(/^['"`]+|['"`]+$/g, '')
+  let key = strip(String(private_key || ''))
+  if (key.includes('\\n')) key = key.replace(/\\n/g, '\n')
+  if (!key.includes('BEGIN') && /^[A-Za-z0-9+/=]+$/.test(key)) {
+    try { key = Buffer.from(key, 'base64').toString('utf8') } catch {}
+  }
+  if (!key.includes('BEGIN') || !key.includes('END')) throw new Error('invalid_private_key_format')
   const auth = new GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL as string,
-      private_key: ((process.env.GOOGLE_PRIVATE_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) as string).replace(/\\n/g, '\n')
-    },
+    credentials: { client_email: client_email as string, private_key: key },
     scopes: ['https://www.googleapis.com/auth/spreadsheets']
   })
   const doc = new GoogleSpreadsheet(id, auth as any)
