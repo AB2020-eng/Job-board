@@ -9,6 +9,13 @@ function deepLink(jobId: string | number) {
   return `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}/app?startapp=jobId_${jobId}`
 }
 
+function withTimeout<T>(p: Promise<T>, ms: number, msg: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(msg)), ms)
+    p.then((v) => { clearTimeout(t); resolve(v) }).catch((e) => { clearTimeout(t); reject(e) })
+  })
+}
+
 async function resolveChannelId(ctx: any): Promise<number | string> {
   const raw = String(process.env.TELEGRAM_CHANNEL_ID || '-1003779130300').trim()
   if (!raw) throw new Error('TELEGRAM_CHANNEL_ID missing')
@@ -47,13 +54,13 @@ bot.on('callback_query', async (ctx) => {
   if (action === 'approve') {
     try {
       try { await ctx.editMessageText('⏳ Approving…') } catch {}
-      await updateJobStatus(jobId, 'active')
-      const job = await getJobById(jobId)
+      await withTimeout(updateJobStatus(jobId, 'active'), 15000, 'Timeout updating sheet')
+      const job = await withTimeout(getJobById(jobId), 15000, 'Timeout reading job')
       const text = `💼 ${job.Title}\n${job.Description}\n\nApply via Mini App`
       const link = deepLink(jobId)
       const keyboard = { reply_markup: { inline_keyboard: [[{ text: '💼 Apply via Mini App', url: link }]] } } as any
       const channelId = await resolveChannelId(ctx)
-      await ctx.telegram.sendMessage(channelId as any, text, keyboard)
+      await withTimeout(ctx.telegram.sendMessage(channelId as any, text, keyboard), 10000, 'Timeout posting to channel')
       try { await ctx.editMessageText(`✅ Approved: ${job.Title}`) } catch {}
       try { await ctx.answerCbQuery('✅ Job Approved & Posted!') } catch {}
     } catch (e: any) {
@@ -64,7 +71,7 @@ bot.on('callback_query', async (ctx) => {
   } else if (action === 'reject') {
     try {
       try { await ctx.editMessageText('⏳ Rejecting…') } catch {}
-      await updateJobStatus(jobId, 'rejected')
+      await withTimeout(updateJobStatus(jobId, 'rejected'), 15000, 'Timeout updating sheet')
       try { await ctx.editMessageText('❌ This job post was rejected.') } catch {}
       try { await ctx.answerCbQuery('❌ Job Rejected') } catch {}
     } catch (e: any) {
