@@ -37,8 +37,13 @@ bot.action(/^(approve|reject)[:_](.+)$/, async (ctx, next) => {
 
 // Approve handler
 bot.action(/^approve[:_](.+)$/, async (ctx) => {
-  const jobId = (ctx.match as RegExpMatchArray)[1]
   try {
+    const jobIdRaw = (ctx.match as RegExpMatchArray)?.[1]
+    const jobId = String(jobIdRaw || '').replace(/[^0-9]/g, '')
+    if (!jobId) {
+      try { await ctx.answerCbQuery('Invalid job id') } catch {}
+      return
+    }
     await updateJobStatus(jobId, 'active')
     const job = await getJobById(jobId)
     const text = `💼 ${job.Title}\n${job.Description}\n\nApply via Mini App`
@@ -46,12 +51,9 @@ bot.action(/^approve[:_](.+)$/, async (ctx) => {
     const keyboard = { reply_markup: { inline_keyboard: [[{ text: '💼 Apply via Mini App', url: link }]] } } as any
     const channelId = await resolveChannelId(ctx)
     await ctx.telegram.sendMessage(channelId as any, text, keyboard)
-    try {
-      await ctx.editMessageText(`✅ Approved: ${job.Title}`)
-    } catch {}
+    try { await ctx.editMessageText(`✅ Approved: ${job.Title}`) } catch {}
     try { await ctx.answerCbQuery('✅ Job Approved & Posted!') } catch {}
   } catch (e: any) {
-    // Surface error in admin message if possible
     const detail = e?.response?.description || e?.message || 'Unknown error'
     try { await ctx.editMessageText(`❗ Error approving: ${detail}`) } catch {}
     try { await ctx.answerCbQuery(detail) } catch {}
@@ -60,12 +62,15 @@ bot.action(/^approve[:_](.+)$/, async (ctx) => {
 
 // Reject handler
 bot.action(/^reject[:_](.+)$/, async (ctx) => {
-  const jobId = (ctx.match as RegExpMatchArray)[1]
   try {
+    const jobIdRaw = (ctx.match as RegExpMatchArray)?.[1]
+    const jobId = String(jobIdRaw || '').replace(/[^0-9]/g, '')
+    if (!jobId) {
+      try { await ctx.answerCbQuery('Invalid job id') } catch {}
+      return
+    }
     await updateJobStatus(jobId, 'rejected')
-    try {
-      await ctx.editMessageText('❌ This job post was rejected.')
-    } catch {}
+    try { await ctx.editMessageText('❌ This job post was rejected.') } catch {}
     try { await ctx.answerCbQuery('❌ Job Rejected') } catch {}
   } catch (e: any) {
     const detail = e?.response?.description || e?.message || 'Unknown error'
