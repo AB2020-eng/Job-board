@@ -131,7 +131,7 @@ export async function updateJobStatus(jobId: string, status: string) {
   const statusKey = findKey(['Status', 'status', 'State']) || 'Status'
   let row = rows.find((r: any) => String((r as any)[idKey]) === idSan) as any
   if (!row) {
-    for (let i = 0; i < 3 && !row; i++) {
+    for (let i = 0; i < 8 && !row; i++) {
       await new Promise((r) => setTimeout(r, 250))
       await jobs.loadHeaderRow()
       rows = await jobs.getRows()
