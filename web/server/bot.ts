@@ -32,6 +32,22 @@ async function resolveChannelId(ctx: any): Promise<number | string> {
   return Number.isFinite(n) && raw.startsWith('-') ? n : raw
 }
 
+function fireWorker(action: 'approve'|'reject', jobId: string, chatId: number, messageId: number) {
+  const base = String(process.env.BOT_PUBLIC_URL || '').replace(/\/+$/, '')
+  const secret = String(process.env.BOT_WEBHOOK_SECRET || '')
+  if (!base || !secret) return
+  const url = `${base}/api/telegram/callback-worker?secret=${encodeURIComponent(secret)}`
+  const payload = { action, jobId, admin_chat_id: chatId, admin_message_id: messageId }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(() => {})
+  } catch {}
+}
+
 bot.on('callback_query', async (ctx) => {
   const fromId = ctx.from?.id
   if (String(fromId) !== String(process.env.TELEGRAM_ADMIN_ID)) {
@@ -54,16 +70,12 @@ bot.on('callback_query', async (ctx) => {
   if (action === 'approve') {
     try {
       try { await ctx.editMessageText('⏳ Approving…') } catch {}
-      const updated = await withTimeout(updateJobStatus(jobId, 'active'), 4000, 'Timeout updating sheet')
-      const title = (updated as any)?.Title || (updated as any)?.title || `Job ${jobId}`
-      const description = (updated as any)?.Description || (updated as any)?.description || ''
-      const text = `💼 ${title}\n${description}\n\nApply via Mini App`
-      const link = deepLink(jobId)
-      const keyboard = { reply_markup: { inline_keyboard: [[{ text: '💼 Apply via Mini App', url: link }]] } } as any
-      const channelId = await resolveChannelId(ctx)
-      await withTimeout(ctx.telegram.sendMessage(channelId as any, text, keyboard), 4000, 'Timeout posting to channel')
-      try { await ctx.editMessageText(`✅ Approved: ${title}`) } catch {}
-      try { await ctx.answerCbQuery('✅ Job Approved & Posted!') } catch {}
+      const chatId = (ctx.callbackQuery as any)?.message?.chat?.id
+      const messageId = (ctx.callbackQuery as any)?.message?.message_id
+      if (chatId && messageId) {
+        fireWorker('approve', jobId, Number(chatId), Number(messageId))
+      }
+      return
     } catch (e: any) {
       const detail = e?.response?.description || e?.message || 'Unknown error'
       try { await ctx.editMessageText(`❗ Error approving: ${detail}`) } catch {}
@@ -72,9 +84,12 @@ bot.on('callback_query', async (ctx) => {
   } else if (action === 'reject') {
     try {
       try { await ctx.editMessageText('⏳ Rejecting…') } catch {}
-      await withTimeout(updateJobStatus(jobId, 'rejected'), 4000, 'Timeout updating sheet')
-      try { await ctx.editMessageText('❌ This job post was rejected.') } catch {}
-      try { await ctx.answerCbQuery('❌ Job Rejected') } catch {}
+      const chatId = (ctx.callbackQuery as any)?.message?.chat?.id
+      const messageId = (ctx.callbackQuery as any)?.message?.message_id
+      if (chatId && messageId) {
+        fireWorker('reject', jobId, Number(chatId), Number(messageId))
+      }
+      return
     } catch (e: any) {
       const detail = e?.response?.description || e?.message || 'Unknown error'
       try { await ctx.editMessageText(`❗ Error rejecting: ${detail}`) } catch {}
