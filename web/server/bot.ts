@@ -46,6 +46,7 @@ bot.on('callback_query', async (ctx) => {
   }
   if (action === 'approve') {
     try {
+      try { await ctx.editMessageText('⏳ Approving…') } catch {}
       await updateJobStatus(jobId, 'active')
       const job = await getJobById(jobId)
       const text = `💼 ${job.Title}\n${job.Description}\n\nApply via Mini App`
@@ -62,6 +63,7 @@ bot.on('callback_query', async (ctx) => {
     }
   } else if (action === 'reject') {
     try {
+      try { await ctx.editMessageText('⏳ Rejecting…') } catch {}
       await updateJobStatus(jobId, 'rejected')
       try { await ctx.editMessageText('❌ This job post was rejected.') } catch {}
       try { await ctx.answerCbQuery('❌ Job Rejected') } catch {}
