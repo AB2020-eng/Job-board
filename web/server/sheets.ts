@@ -92,28 +92,73 @@ export async function addJobRow(record: {
 
 export async function updateJobStatus(jobId: string, status: string) {
   const { jobs } = await getSheets()
-  await jobs.loadHeaderRow()
-  const rows = await jobs.getRows()
-  const row = rows.find((r: any) => String((r as any).ID) === String(jobId)) as any
+  const idSan = String(jobId || '').replace(/[^0-9]/g, '')
+  try {
+    await jobs.loadHeaderRow()
+  } catch {}
+  let rows: any[] = []
+  try {
+    rows = await jobs.getRows()
+  } catch (err: any) {
+    const msg = String(err?.message || '')
+    if (msg.includes('Header values are not yet loaded') || msg.includes('Header values are not loaded') || msg.includes('No values in the header row')) {
+      await jobs.setHeaderRow(JOBS_HEADERS)
+      await jobs.loadHeaderRow()
+      rows = await jobs.getRows()
+    } else {
+      throw err
+    }
+  }
+  const headers: string[] = ((jobs as any).headerValues || []) as any
+  const norm = (s: string) => String(s || '').toLowerCase()
+  const findKey = (cands: string[]) => headers.find((h) => cands.map(norm).includes(norm(h)))
+  const idKey = findKey(['ID', 'Id', 'id', 'Job_ID', 'Job Id', 'JobId']) || 'ID'
+  const statusKey = findKey(['Status', 'status', 'State']) || 'Status'
+  const row = rows.find((r: any) => String((r as any)[idKey]) === idSan) as any
   if (!row) throw new Error('not_found')
-  ;(row as any).Status = status
+  row[statusKey] = status
   await row.save()
   return row
 }
 
 export async function getJobById(jobId: string) {
   const { jobs } = await getSheets()
-  await jobs.loadHeaderRow()
-  const rows = await jobs.getRows()
-  const row = rows.find((r: any) => String((r as any).ID) === String(jobId)) as any
+  const idSan = String(jobId || '').replace(/[^0-9]/g, '')
+  try {
+    await jobs.loadHeaderRow()
+  } catch {}
+  let rows: any[] = []
+  try {
+    rows = await jobs.getRows()
+  } catch (err: any) {
+    const msg = String(err?.message || '')
+    if (msg.includes('Header values are not yet loaded') || msg.includes('Header values are not loaded') || msg.includes('No values in the header row')) {
+      await jobs.setHeaderRow(JOBS_HEADERS)
+      await jobs.loadHeaderRow()
+      rows = await jobs.getRows()
+    } else {
+      throw err
+    }
+  }
+  const headers: string[] = ((jobs as any).headerValues || []) as any
+  const norm = (s: string) => String(s || '').toLowerCase()
+  const findKey = (cands: string[]) => headers.find((h) => cands.map(norm).includes(norm(h)))
+  const idKey = findKey(['ID', 'Id', 'id', 'Job_ID', 'Job Id', 'JobId']) || 'ID'
+  const titleKey = findKey(['Title', 'title']) || 'Title'
+  const descKey = findKey(['Description', 'description']) || 'Description'
+  const employerKey = findKey(['Employer', 'employer', 'Employer_ID', 'EmployerId']) || 'Employer'
+  const statusKey = findKey(['Status', 'status', 'State']) || 'Status'
+  const createdKey = findKey(['Created_At', 'created_at', 'CreatedAt', 'createdAt']) || 'Created_At'
+  const expiresKey = findKey(['Expires_At', 'expires_at', 'ExpiresAt', 'expiresAt']) || 'Expires_At'
+  const row = rows.find((r: any) => String((r as any)[idKey]) === idSan) as any
   if (!row) throw new Error('not_found')
   return {
-    ID: String((row as any).ID),
-    Employer: (row as any).Employer,
-    Title: (row as any).Title,
-    Description: (row as any).Description,
-    Status: (row as any).Status,
-    Created_At: (row as any).Created_At,
-    Expires_At: (row as any).Expires_At
+    ID: String(row[idKey]),
+    Employer: row[employerKey],
+    Title: row[titleKey],
+    Description: row[descKey],
+    Status: row[statusKey],
+    Created_At: row[createdKey],
+    Expires_At: row[expiresKey]
   }
 }
