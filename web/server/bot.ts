@@ -9,6 +9,22 @@ function deepLink(jobId: string | number) {
   return `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}/app?startapp=jobId_${jobId}`
 }
 
+async function resolveChannelId(ctx: any): Promise<number | string> {
+  const raw = String(process.env.TELEGRAM_CHANNEL_ID || '').trim()
+  if (!raw) throw new Error('TELEGRAM_CHANNEL_ID missing')
+  if (raw.startsWith('@')) {
+    try {
+      const chat = await ctx.telegram.getChat(raw)
+      return chat.id
+    } catch {
+      // Fallback to raw; Telegram also accepts @username if bot has rights
+      return raw
+    }
+  }
+  const n = Number(raw)
+  return Number.isFinite(n) && raw.startsWith('-') ? n : raw
+}
+
 // Guard: admin only (supports both approve_<id> and approve:<id>)
 bot.action(/^(approve|reject)[:_](.+)$/, async (ctx, next) => {
   if (String(ctx.from?.id) !== String(process.env.TELEGRAM_ADMIN_ID)) {
@@ -28,12 +44,15 @@ bot.action(/^approve[:_](.+)$/, async (ctx) => {
     const text = `💼 ${job.Title}\n${job.Description}\n\nApply via Mini App`
     const link = deepLink(jobId)
     const keyboard = { reply_markup: { inline_keyboard: [[{ text: '💼 Apply via Mini App', url: link }]] } } as any
-    await ctx.telegram.sendMessage(String(process.env.TELEGRAM_CHANNEL_ID), text, keyboard)
+    const channelId = await resolveChannelId(ctx)
+    await ctx.telegram.sendMessage(channelId as any, text, keyboard)
     try {
       await ctx.editMessageText(`✅ Approved: ${job.Title}`)
     } catch {}
     try { await ctx.answerCbQuery('✅ Job Approved & Posted!') } catch {}
   } catch (e: any) {
+    // Surface error in admin message if possible
+    try { await ctx.editMessageText(`❗ Error approving: ${e?.message || 'Unknown error'}`) } catch {}
     try { await ctx.answerCbQuery(e?.message || 'Error') } catch {}
   }
 })
@@ -48,6 +67,7 @@ bot.action(/^reject[:_](.+)$/, async (ctx) => {
     } catch {}
     try { await ctx.answerCbQuery('❌ Job Rejected') } catch {}
   } catch (e: any) {
+    try { await ctx.editMessageText(`❗ Error rejecting: ${e?.message || 'Unknown error'}`) } catch {}
     try { await ctx.answerCbQuery(e?.message || 'Error') } catch {}
   }
 })
