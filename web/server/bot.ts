@@ -25,57 +25,53 @@ async function resolveChannelId(ctx: any): Promise<number | string> {
   return Number.isFinite(n) && raw.startsWith('-') ? n : raw
 }
 
-// Guard: admin only (supports both approve_<id> and approve:<id>)
-bot.action(/^(approve|reject)[:_](.+)$/, async (ctx, next) => {
-  if (String(ctx.from?.id) !== String(process.env.TELEGRAM_ADMIN_ID)) {
+bot.on('callback_query', async (ctx) => {
+  const fromId = ctx.from?.id
+  if (String(fromId) !== String(process.env.TELEGRAM_ADMIN_ID)) {
     try { await ctx.answerCbQuery('🚫 You are not authorized.') } catch {}
     return
   }
   try { await ctx.answerCbQuery('Processing…') } catch {}
-  return next()
-})
-
-// Approve handler
-bot.action(/^approve[:_](.+)$/, async (ctx) => {
-  try {
-    const jobIdRaw = (ctx.match as RegExpMatchArray)?.[1]
-    const jobId = String(jobIdRaw || '').replace(/[^0-9]/g, '')
-    if (!jobId) {
-      try { await ctx.answerCbQuery('Invalid job id') } catch {}
-      return
-    }
-    await updateJobStatus(jobId, 'active')
-    const job = await getJobById(jobId)
-    const text = `💼 ${job.Title}\n${job.Description}\n\nApply via Mini App`
-    const link = deepLink(jobId)
-    const keyboard = { reply_markup: { inline_keyboard: [[{ text: '💼 Apply via Mini App', url: link }]] } } as any
-    const channelId = await resolveChannelId(ctx)
-    await ctx.telegram.sendMessage(channelId as any, text, keyboard)
-    try { await ctx.editMessageText(`✅ Approved: ${job.Title}`) } catch {}
-    try { await ctx.answerCbQuery('✅ Job Approved & Posted!') } catch {}
-  } catch (e: any) {
-    const detail = e?.response?.description || e?.message || 'Unknown error'
-    try { await ctx.editMessageText(`❗ Error approving: ${detail}`) } catch {}
-    try { await ctx.answerCbQuery(detail) } catch {}
+  const data = (ctx.callbackQuery as any)?.data || ''
+  const m = String(data).match(/^(approve|reject)[:_](.+)$/)
+  if (!m) {
+    try { await ctx.answerCbQuery('Invalid action') } catch {}
+    return
   }
-})
-
-// Reject handler
-bot.action(/^reject[:_](.+)$/, async (ctx) => {
-  try {
-    const jobIdRaw = (ctx.match as RegExpMatchArray)?.[1]
-    const jobId = String(jobIdRaw || '').replace(/[^0-9]/g, '')
-    if (!jobId) {
-      try { await ctx.answerCbQuery('Invalid job id') } catch {}
-      return
+  const action = m[1]
+  const jobId = String(m[2] || '').replace(/[^0-9]/g, '')
+  if (!jobId) {
+    try { await ctx.answerCbQuery('Invalid job id') } catch {}
+    return
+  }
+  if (action === 'approve') {
+    try {
+      await updateJobStatus(jobId, 'active')
+      const job = await getJobById(jobId)
+      const text = `💼 ${job.Title}\n${job.Description}\n\nApply via Mini App`
+      const link = deepLink(jobId)
+      const keyboard = { reply_markup: { inline_keyboard: [[{ text: '💼 Apply via Mini App', url: link }]] } } as any
+      const channelId = await resolveChannelId(ctx)
+      await ctx.telegram.sendMessage(channelId as any, text, keyboard)
+      try { await ctx.editMessageText(`✅ Approved: ${job.Title}`) } catch {}
+      try { await ctx.answerCbQuery('✅ Job Approved & Posted!') } catch {}
+    } catch (e: any) {
+      const detail = e?.response?.description || e?.message || 'Unknown error'
+      try { await ctx.editMessageText(`❗ Error approving: ${detail}`) } catch {}
+      try { await ctx.answerCbQuery(detail) } catch {}
     }
-    await updateJobStatus(jobId, 'rejected')
-    try { await ctx.editMessageText('❌ This job post was rejected.') } catch {}
-    try { await ctx.answerCbQuery('❌ Job Rejected') } catch {}
-  } catch (e: any) {
-    const detail = e?.response?.description || e?.message || 'Unknown error'
-    try { await ctx.editMessageText(`❗ Error rejecting: ${detail}`) } catch {}
-    try { await ctx.answerCbQuery(detail) } catch {}
+  } else if (action === 'reject') {
+    try {
+      await updateJobStatus(jobId, 'rejected')
+      try { await ctx.editMessageText('❌ This job post was rejected.') } catch {}
+      try { await ctx.answerCbQuery('❌ Job Rejected') } catch {}
+    } catch (e: any) {
+      const detail = e?.response?.description || e?.message || 'Unknown error'
+      try { await ctx.editMessageText(`❗ Error rejecting: ${detail}`) } catch {}
+      try { await ctx.answerCbQuery(detail) } catch {}
+    }
+  } else {
+    try { await ctx.answerCbQuery('Unknown action') } catch {}
   }
 })
 
