@@ -125,17 +125,26 @@ export async function updateJobStatus(jobId: string, status: string) {
     }
   }
   const headers: string[] = ((jobs as any).headerValues || []) as any
-  const norm = (s: string) => String(s || '').toLowerCase()
+  const norm = (s: string) => String(s || '').trim().toLowerCase()
   const findKey = (cands: string[]) => headers.find((h) => cands.map(norm).includes(norm(h)))
   const idKey = findKey(['ID', 'Id', 'id', 'Job_ID', 'Job Id', 'JobId']) || 'ID'
   const statusKey = findKey(['Status', 'status', 'State']) || 'Status'
-  let row = rows.find((r: any) => String((r as any)[idKey]) === idSan) as any
+  const equalId = (val: any) => {
+    const raw = String(val ?? '')
+    if (raw === idSan) return true
+    const digits = raw.replace(/\D/g, '')
+    if (digits && digits === idSan) return true
+    const n = Number(raw)
+    if (Number.isFinite(n) && String(Math.trunc(n)) === idSan) return true
+    return false
+  }
+  let row = rows.find((r: any) => equalId((r as any)[idKey])) as any
   if (!row) {
-    for (let i = 0; i < 8 && !row; i++) {
+    for (let i = 0; i < 12 && !row; i++) {
       await new Promise((r) => setTimeout(r, 250))
       await jobs.loadHeaderRow()
       rows = await jobs.getRows()
-      row = rows.find((r: any) => String((r as any)[idKey]) === idSan) as any
+      row = rows.find((r: any) => equalId((r as any)[idKey])) as any
     }
   }
   if (!row) throw new Error('not_found')
@@ -164,7 +173,7 @@ export async function getJobById(jobId: string) {
     }
   }
   const headers: string[] = ((jobs as any).headerValues || []) as any
-  const norm = (s: string) => String(s || '').toLowerCase()
+  const norm = (s: string) => String(s || '').trim().toLowerCase()
   const findKey = (cands: string[]) => headers.find((h) => cands.map(norm).includes(norm(h)))
   const idKey = findKey(['ID', 'Id', 'id', 'Job_ID', 'Job Id', 'JobId']) || 'ID'
   const titleKey = findKey(['Title', 'title']) || 'Title'
@@ -173,13 +182,22 @@ export async function getJobById(jobId: string) {
   const statusKey = findKey(['Status', 'status', 'State']) || 'Status'
   const createdKey = findKey(['Created_At', 'created_at', 'CreatedAt', 'createdAt']) || 'Created_At'
   const expiresKey = findKey(['Expires_At', 'expires_at', 'ExpiresAt', 'expiresAt']) || 'Expires_At'
-  let row = rows.find((r: any) => String((r as any)[idKey]) === idSan) as any
+  const equalId2 = (val: any) => {
+    const raw = String(val ?? '')
+    if (raw === idSan) return true
+    const digits = raw.replace(/\D/g, '')
+    if (digits && digits === idSan) return true
+    const n = Number(raw)
+    if (Number.isFinite(n) && String(Math.trunc(n)) === idSan) return true
+    return false
+  }
+  let row = rows.find((r: any) => equalId2((r as any)[idKey])) as any
   if (!row) {
-    for (let i = 0; i < 3 && !row; i++) {
+    for (let i = 0; i < 12 && !row; i++) {
       await new Promise((r) => setTimeout(r, 250))
       await jobs.loadHeaderRow()
       rows = await jobs.getRows()
-      row = rows.find((r: any) => String((r as any)[idKey]) === idSan) as any
+      row = rows.find((r: any) => equalId2((r as any)[idKey])) as any
     }
   }
   if (!row) throw new Error('not_found')
