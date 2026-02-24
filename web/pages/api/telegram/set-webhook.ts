@@ -20,8 +20,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch {
     return res.status(400).json({ error: 'invalid_PUBLIC_URL' })
   }
-  const url = `${base}/api/telegram/webhook/${process.env.BOT_WEBHOOK_SECRET || ''}`
+  const url = `${base}/api/bot`
   await bot.telegram.setWebhook(url, {
+    secret_token: String(process.env.BOT_WEBHOOK_SECRET || ''),
     allowed_updates: ['callback_query', 'message'],
     drop_pending_updates: false
   } as any)
