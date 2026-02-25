@@ -6,7 +6,7 @@ const botToken = process.env.TELEGRAM_BOT_TOKEN as string
 export const bot = new Telegraf(botToken)
 
 function deepLink(jobId: string | number) {
-  return `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}/app?startapp=jobId_${jobId}`
+  return `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}?startapp=jobId_${jobId}`
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number, msg: string): Promise<T> {
@@ -61,7 +61,10 @@ async function fireWorker(action: 'approve'|'reject', jobId: string, chatId: num
 
 async function handleActionInline(action: 'approve'|'reject', jobId: string, chatId: number, messageId: number) {
   if (action === 'approve') {
-    const updated = await updateJobStatus(String(jobId), 'active')
+    let updated: any = {}
+    try {
+      updated = await updateJobStatus(String(jobId), 'active')
+    } catch {}
     let title = (updated as any)?.Title || (updated as any)?.title || `Job ${jobId}`
     let category = (updated as any)?.Category || (updated as any)?.category || ''
     let salary = (updated as any)?.Salary || (updated as any)?.salary || ''
@@ -81,7 +84,9 @@ async function handleActionInline(action: 'approve'|'reject', jobId: string, cha
     await bot.telegram.sendMessage(channelId as any, text, keyboard)
     await bot.telegram.editMessageText(chatId, messageId, undefined as any, `✅ Approved: ${title}`)
   } else {
-    await updateJobStatus(String(jobId), 'rejected')
+    try {
+      await updateJobStatus(String(jobId), 'rejected')
+    } catch {}
     await bot.telegram.editMessageText(chatId, messageId, undefined as any, '❌ This job post was rejected.')
   }
 }

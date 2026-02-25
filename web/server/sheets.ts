@@ -11,7 +11,7 @@ function normalizeSpreadsheetId(input?: string) {
   return s
 }
 
-export const JOBS_HEADERS = ['ID', 'Employer', 'Title', 'Category', 'Salary', 'Description', 'Status', 'Created_At', 'Expires_At']
+export const JOBS_HEADERS = ['ID', 'Employer', 'Title', 'Category', 'Salary', 'Description', 'Created_At', 'Expires_At']
 export const APPLICATIONS_HEADERS = ['Job_ID', 'Seeker_Username', 'CV_File_ID', 'Applied_At']
 
 export async function getSheets() {
@@ -87,7 +87,6 @@ export async function addJobRow(record: {
   Category?: string
   Salary?: string
   Description: string
-  Status: string
   Created_At: string
   Expires_At: string
 }) {
@@ -195,8 +194,11 @@ export async function updateJobStatus(jobId: string, status: string) {
     }
     throw new Error('not_found')
   }
-  row[statusKey] = status
-  await row.save()
+  const hasStatus = headers.some((h) => norm(h) === norm(statusKey))
+  if (hasStatus) {
+    row[statusKey] = status
+    await row.save()
+  }
   return row
 }
 

@@ -31,7 +31,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       Category: category,
       Salary: salary,
       Description: description,
-      Status: 'pending',
       Created_At: now.toISOString(),
       Expires_At: expires.toISOString()
     })

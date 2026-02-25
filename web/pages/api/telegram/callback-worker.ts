@@ -16,7 +16,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   try {
     if (action === 'approve') {
-      const updated = await updateJobStatus(String(jobId), 'active')
+      let updated: any = {}
+      try {
+        updated = await updateJobStatus(String(jobId), 'active')
+      } catch {}
       let title = (updated as any)?.Title || (updated as any)?.title || `Job ${jobId}`
       let category = (updated as any)?.Category || (updated as any)?.category || ''
       let salary = (updated as any)?.Salary || (updated as any)?.salary || ''
@@ -30,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } catch {}
       const details = [category ? `Category: ${category}` : '', salary ? `Salary: ${salary}` : ''].filter(Boolean).join('\n')
       const text = `💼 ${title}${details ? `\n${details}` : ''}\n\n${description}\n\nApply via Mini App`
-      const link = `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}/app?startapp=jobId_${jobId}`
+      const link = `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}?startapp=jobId_${jobId}`
       const keyboard = { reply_markup: { inline_keyboard: [[{ text: '💼 Apply via Mini App', url: link }]] } } as any
       const channelRaw = String(process.env.TELEGRAM_CHANNEL_ID || '-1003779130300').trim()
       const channelId = channelRaw.startsWith('-') ? Number(channelRaw) : channelRaw
@@ -38,7 +41,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await bot.telegram.editMessageText(chatId, msgId, undefined as any, `✅ Approved: ${title}`)
       return res.json({ ok: true })
     } else if (action === 'reject') {
-      await updateJobStatus(String(jobId), 'rejected')
+      try {
+        await updateJobStatus(String(jobId), 'rejected')
+      } catch {}
       await bot.telegram.editMessageText(chatId, msgId, undefined as any, '❌ This job post was rejected.')
       return res.json({ ok: true })
     } else {
