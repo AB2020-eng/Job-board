@@ -34,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       Created_At: now.toISOString(),
       Expires_At: expires.toISOString()
     })
-    await notifyAdmin({ id, title, description, employer_username })
+    await notifyAdmin({ id, title, description, category, salary, employer_username })
     res.json({ ok: true, id })
   } catch (e: any) {
     res.status(500).json({ error: e.message || 'sheet_error' })

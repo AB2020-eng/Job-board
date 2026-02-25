@@ -61,78 +61,93 @@ async function fireWorker(action: 'approve'|'reject', jobId: string, chatId: num
 
 async function handleActionInline(action: 'approve'|'reject', jobId: string, chatId: number, messageId: number) {
   if (action === 'approve') {
+    await updateJobStatus(String(jobId), 'active')
     const job = await getJobById(String(jobId))
-    const title = job.Title || `Job ${jobId}`
-    const category = job.Category || ''
-    const salary = job.Salary || ''
-    const description = job.Description || ''
-    const details = [category ? `Category: ${category}` : '', salary ? `Salary: ${salary}` : ''].filter(Boolean).join('\n')
-    const text = `💼 ${title}${details ? `\n${details}` : ''}\n\n${description}\n\nApply via Mini App`
+    const { title, text } = formatJobText(job, String(jobId))
     const link = deepLink(jobId)
     const keyboard = { reply_markup: { inline_keyboard: [[{ text: '💼 Apply via Mini App', url: link }]] } } as any
     const channelId = await resolveChannelId({ telegram: bot.telegram })
     await bot.telegram.sendMessage(channelId as any, text, keyboard)
-    await bot.telegram.editMessageText(chatId, messageId, undefined as any, `✅ Approved: ${title}`)
+    await bot.telegram.editMessageText(chatId, messageId, undefined as any, `✅ Job "${title}" has been posted to the channel.`)
   } else {
     await bot.telegram.editMessageText(chatId, messageId, undefined as any, '❌ This job post was rejected.')
   }
 }
 
-bot.on('callback_query', async (ctx) => {
+function formatJobText(job: any, jobId?: string) {
+  const title = job?.Title || job?.title || (jobId ? `Job ${jobId}` : 'Job')
+  const category = job?.Category || job?.category || ''
+  const salary = job?.Salary || job?.salary || ''
+  const description = job?.Description || job?.description || ''
+  const details = [category ? `Category: ${category}` : '', salary ? `Salary: ${salary}` : ''].filter(Boolean).join('\n')
+  const text = `💼 ${title}${details ? `\n${details}` : ''}\n\n${description}\n\nApply via Mini App`
+  return { title, text }
+}
+
+async function runApprove(ctx: any, jobId: string) {
+  try { await ctx.answerCbQuery('Processing...') } catch {}
   const fromId = ctx.from?.id
   if (String(fromId) !== String(process.env.TELEGRAM_ADMIN_ID)) {
     try { await ctx.answerCbQuery('🚫 You are not authorized.') } catch {}
     return
   }
-  try { await ctx.answerCbQuery('Processing…') } catch {}
-  const data = (ctx.callbackQuery as any)?.data || ''
-  const m = String(data).match(/^(approve|reject)[:_](.+)$/)
-  if (!m) {
-    try { await ctx.answerCbQuery('Invalid action') } catch {}
+  try {
+    try { await ctx.editMessageText('⏳ Approving…') } catch {}
+    const chatId = (ctx.callbackQuery as any)?.message?.chat?.id
+    const messageId = (ctx.callbackQuery as any)?.message?.message_id
+    if (chatId && messageId) {
+      await withTimeout(handleActionInline('approve', jobId, Number(chatId), Number(messageId)), 15000, 'inline_timeout')
+    }
+  } catch (e: any) {
+    const detail = e?.response?.description || e?.message || 'Unknown error'
+    try { await ctx.editMessageText(`❗ Error approving: ${detail}`) } catch {}
+    try { await ctx.answerCbQuery('❌ Error during approval.') } catch {}
+  }
+}
+
+async function runReject(ctx: any, jobId: string) {
+  try { await ctx.answerCbQuery('Processing...') } catch {}
+  const fromId = ctx.from?.id
+  if (String(fromId) !== String(process.env.TELEGRAM_ADMIN_ID)) {
+    try { await ctx.answerCbQuery('🚫 You are not authorized.') } catch {}
     return
   }
-  const action = m[1]
-  const jobId = String(m[2] || '').replace(/[^0-9]/g, '')
+  try {
+    try { await ctx.editMessageText('⏳ Rejecting…') } catch {}
+    const chatId = (ctx.callbackQuery as any)?.message?.chat?.id
+    const messageId = (ctx.callbackQuery as any)?.message?.message_id
+    if (chatId && messageId) {
+      await withTimeout(handleActionInline('reject', jobId, Number(chatId), Number(messageId)), 15000, 'inline_timeout')
+    }
+  } catch (e: any) {
+    const detail = e?.response?.description || e?.message || 'Unknown error'
+    try { await ctx.editMessageText(`❗ Error rejecting: ${detail}`) } catch {}
+    try { await ctx.answerCbQuery('❌ Error during rejection.') } catch {}
+  }
+}
+
+bot.action(/^approve_(.+)$/, async (ctx) => {
+  const jobId = String((ctx as any).match?.[1] || '').replace(/[^0-9]/g, '')
   if (!jobId) {
     try { await ctx.answerCbQuery('Invalid job id') } catch {}
     return
   }
-  if (action === 'approve') {
-    try {
-      try { await ctx.editMessageText('⏳ Approving…') } catch {}
-      const chatId = (ctx.callbackQuery as any)?.message?.chat?.id
-      const messageId = (ctx.callbackQuery as any)?.message?.message_id
-      if (chatId && messageId) {
-        await withTimeout(handleActionInline('approve', jobId, Number(chatId), Number(messageId)), 12000, 'inline_timeout')
-      }
-      return
-    } catch (e: any) {
-      const detail = e?.response?.description || e?.message || 'Unknown error'
-      try { await ctx.editMessageText(`❗ Error approving: ${detail}`) } catch {}
-      try { await ctx.answerCbQuery(detail) } catch {}
-    }
-  } else if (action === 'reject') {
-    try {
-      try { await ctx.editMessageText('⏳ Rejecting…') } catch {}
-      const chatId = (ctx.callbackQuery as any)?.message?.chat?.id
-      const messageId = (ctx.callbackQuery as any)?.message?.message_id
-      if (chatId && messageId) {
-        await withTimeout(handleActionInline('reject', jobId, Number(chatId), Number(messageId)), 12000, 'inline_timeout')
-      }
-      return
-    } catch (e: any) {
-      const detail = e?.response?.description || e?.message || 'Unknown error'
-      try { await ctx.editMessageText(`❗ Error rejecting: ${detail}`) } catch {}
-      try { await ctx.answerCbQuery(detail) } catch {}
-    }
-  } else {
-    try { await ctx.answerCbQuery('Unknown action') } catch {}
+  await runApprove(ctx, jobId)
+})
+
+bot.action(/^reject_(.+)$/, async (ctx) => {
+  const jobId = String((ctx as any).match?.[1] || '').replace(/[^0-9]/g, '')
+  if (!jobId) {
+    try { await ctx.answerCbQuery('Invalid job id') } catch {}
+    return
   }
+  await runReject(ctx, jobId)
 })
 
 
-export function notifyAdmin(job: { id: number | string; title: string; description: string; employer_username?: string }) {
-  const text = `New Job: ${job.title} by @${job.employer_username || 'unknown'}\n${String(job.description || '').slice(0, 200)}`
+export function notifyAdmin(job: { id: number | string; title: string; description: string; category?: string; salary?: string; employer_username?: string }) {
+  const details = [job.category ? `Category: ${job.category}` : '', job.salary ? `Salary: ${job.salary}` : ''].filter(Boolean).join('\n')
+  const text = `New Job: ${job.title} by @${job.employer_username || 'unknown'}${details ? `\n${details}` : ''}\n\n${String(job.description || '')}`
   const approveData = `approve_${job.id}`
   const rejectData = `reject_${job.id}`
   const keyboard = Markup.inlineKeyboard([
