@@ -140,13 +140,18 @@ export async function updateJobStatus(jobId: string, status: string) {
     if (Number.isFinite(n) && String(Math.trunc(n)) === idSan) return true
     return false
   }
-  let row = rows.find((r: any) => equalId((r as any)[idKey])) as any
+  const matchesRow = (r: any) => {
+    if (equalId((r as any)[idKey])) return true
+    const raw = Array.isArray((r as any)._rawData) ? (r as any)._rawData : []
+    return raw.some((v: any) => equalId(v))
+  }
+  let row = rows.find((r: any) => matchesRow(r)) as any
   if (!row) {
     for (let i = 0; i < 12 && !row; i++) {
       await new Promise((r) => setTimeout(r, 250))
       await jobs.loadHeaderRow()
       rows = await jobs.getRows()
-      row = rows.find((r: any) => equalId((r as any)[idKey])) as any
+      row = rows.find((r: any) => matchesRow(r)) as any
     }
   }
   if (!row) throw new Error('not_found')
@@ -195,13 +200,18 @@ export async function getJobById(jobId: string) {
     if (Number.isFinite(n) && String(Math.trunc(n)) === idSan) return true
     return false
   }
-  let row = rows.find((r: any) => equalId2((r as any)[idKey])) as any
+  const matchesRow2 = (r: any) => {
+    if (equalId2((r as any)[idKey])) return true
+    const raw = Array.isArray((r as any)._rawData) ? (r as any)._rawData : []
+    return raw.some((v: any) => equalId2(v))
+  }
+  let row = rows.find((r: any) => matchesRow2(r)) as any
   if (!row) {
     for (let i = 0; i < 12 && !row; i++) {
       await new Promise((r) => setTimeout(r, 250))
       await jobs.loadHeaderRow()
       rows = await jobs.getRows()
-      row = rows.find((r: any) => equalId2((r as any)[idKey])) as any
+      row = rows.find((r: any) => matchesRow2(r)) as any
     }
   }
   if (!row) throw new Error('not_found')
