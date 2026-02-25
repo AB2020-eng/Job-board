@@ -233,6 +233,19 @@ export async function getJobById(jobId: string) {
   const statusKey = findKey(['Status', 'status', 'State']) || 'Status'
   const createdKey = findKey(['Created_At', 'created_at', 'CreatedAt', 'createdAt']) || 'Created_At'
   const expiresKey = findKey(['Expires_At', 'expires_at', 'ExpiresAt', 'expiresAt']) || 'Expires_At'
+  const headerIndex = (cands: string[], fallback: number) => {
+    const idx = headers.findIndex((h) => cands.map(norm).includes(norm(h)))
+    return idx >= 0 ? idx : fallback
+  }
+  const idxId = headerIndex(['ID', 'Id', 'id', 'Job_ID', 'Job Id', 'JobId'], 0)
+  const idxEmployer = headerIndex(['Employer', 'employer', 'Employer_ID', 'EmployerId'], 1)
+  const idxTitle = headerIndex(['Title', 'title'], 2)
+  const idxCategory = headerIndex(['Category', 'category'], 3)
+  const idxSalary = headerIndex(['Salary', 'salary'], 4)
+  const idxDesc = headerIndex(['Description', 'description'], 5)
+  const idxStatus = headerIndex(['Status', 'status', 'State'], -1)
+  const idxCreated = headerIndex(['Created_At', 'created_at', 'CreatedAt', 'createdAt'], 6)
+  const idxExpires = headerIndex(['Expires_At', 'expires_at', 'ExpiresAt', 'expiresAt'], 7)
   const equalId2 = (val: any) => {
     const raw = String(val ?? '')
     if (raw === idSan) return true
@@ -249,7 +262,7 @@ export async function getJobById(jobId: string) {
   }
   let row = rows.find((r: any) => matchesRow2(r)) as any
   if (!row) {
-    for (let i = 0; i < 12 && !row; i++) {
+    for (let i = 0; i < 40 && !row; i++) {
       await new Promise((r) => setTimeout(r, 250))
       await jobs.loadHeaderRow()
       rows = await jobs.getRows()
@@ -259,30 +272,46 @@ export async function getJobById(jobId: string) {
   if (!row) {
     const rowIndex = await findRowByIdWithCells(jobs, equalId2)
     if (rowIndex >= 0) {
+      const getCellVal = (idx: number) => (idx >= 0 ? jobs.getCell(rowIndex, idx)?.value : undefined)
       const built = buildRowFromCells(jobs, rowIndex, headers)
+      const pickCell = (key: string, idx: number) => {
+        const v = (built as any)[key]
+        if (v !== undefined && v !== null && String(v).trim() !== '') return v
+        const c = getCellVal(idx)
+        if (c !== undefined && c !== null && String(c).trim() !== '') return c
+        return v ?? c
+      }
       return {
-        ID: String(built[idKey] ?? ''),
-        Employer: built[employerKey],
-        Title: built[titleKey],
-        Category: built[categoryKey],
-        Salary: built[salaryKey],
-        Description: built[descKey],
-        Status: built[statusKey],
-        Created_At: built[createdKey],
-        Expires_At: built[expiresKey]
+        ID: String(pickCell(idKey, idxId) ?? ''),
+        Employer: pickCell(employerKey, idxEmployer),
+        Title: pickCell(titleKey, idxTitle),
+        Category: pickCell(categoryKey, idxCategory),
+        Salary: pickCell(salaryKey, idxSalary),
+        Description: pickCell(descKey, idxDesc),
+        Status: pickCell(statusKey, idxStatus),
+        Created_At: pickCell(createdKey, idxCreated),
+        Expires_At: pickCell(expiresKey, idxExpires)
       }
     }
     throw new Error('not_found')
   }
+  const raw = Array.isArray((row as any)._rawData) ? (row as any)._rawData : []
+  const pickRow = (key: string, idx: number) => {
+    const v = (row as any)[key]
+    if (v !== undefined && v !== null && String(v).trim() !== '') return v
+    const r = idx >= 0 ? raw[idx] : undefined
+    if (r !== undefined && r !== null && String(r).trim() !== '') return r
+    return v ?? r
+  }
   return {
-    ID: String(row[idKey]),
-    Employer: row[employerKey],
-    Title: row[titleKey],
-    Category: row[categoryKey],
-    Salary: row[salaryKey],
-    Description: row[descKey],
-    Status: row[statusKey],
-    Created_At: row[createdKey],
-    Expires_At: row[expiresKey]
+    ID: String(pickRow(idKey, idxId)),
+    Employer: pickRow(employerKey, idxEmployer),
+    Title: pickRow(titleKey, idxTitle),
+    Category: pickRow(categoryKey, idxCategory),
+    Salary: pickRow(salaryKey, idxSalary),
+    Description: pickRow(descKey, idxDesc),
+    Status: pickRow(statusKey, idxStatus),
+    Created_At: pickRow(createdKey, idxCreated),
+    Expires_At: pickRow(expiresKey, idxExpires)
   }
 }

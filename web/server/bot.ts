@@ -103,10 +103,7 @@ bot.on('callback_query', async (ctx) => {
       const chatId = (ctx.callbackQuery as any)?.message?.chat?.id
       const messageId = (ctx.callbackQuery as any)?.message?.message_id
       if (chatId && messageId) {
-        const started = await fireWorker('approve', jobId, Number(chatId), Number(messageId))
-        if (!started) {
-          await withTimeout(handleActionInline('approve', jobId, Number(chatId), Number(messageId)), 9000, 'inline_timeout')
-        }
+        await withTimeout(handleActionInline('approve', jobId, Number(chatId), Number(messageId)), 12000, 'inline_timeout')
       }
       return
     } catch (e: any) {
@@ -120,10 +117,7 @@ bot.on('callback_query', async (ctx) => {
       const chatId = (ctx.callbackQuery as any)?.message?.chat?.id
       const messageId = (ctx.callbackQuery as any)?.message?.message_id
       if (chatId && messageId) {
-        const started = await fireWorker('reject', jobId, Number(chatId), Number(messageId))
-        if (!started) {
-          await withTimeout(handleActionInline('reject', jobId, Number(chatId), Number(messageId)), 9000, 'inline_timeout')
-        }
+        await withTimeout(handleActionInline('reject', jobId, Number(chatId), Number(messageId)), 12000, 'inline_timeout')
       }
       return
     } catch (e: any) {
