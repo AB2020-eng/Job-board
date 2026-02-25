@@ -96,7 +96,10 @@ async function runApprove(ctx: any, jobId: string) {
     const chatId = (ctx.callbackQuery as any)?.message?.chat?.id
     const messageId = (ctx.callbackQuery as any)?.message?.message_id
     if (chatId && messageId) {
-      await withTimeout(handleActionInline('approve', jobId, Number(chatId), Number(messageId)), 15000, 'inline_timeout')
+      const started = await fireWorker('approve', jobId, Number(chatId), Number(messageId))
+      if (!started) {
+        await handleActionInline('approve', jobId, Number(chatId), Number(messageId))
+      }
     }
   } catch (e: any) {
     const detail = e?.response?.description || e?.message || 'Unknown error'
@@ -117,7 +120,10 @@ async function runReject(ctx: any, jobId: string) {
     const chatId = (ctx.callbackQuery as any)?.message?.chat?.id
     const messageId = (ctx.callbackQuery as any)?.message?.message_id
     if (chatId && messageId) {
-      await withTimeout(handleActionInline('reject', jobId, Number(chatId), Number(messageId)), 15000, 'inline_timeout')
+      const started = await fireWorker('reject', jobId, Number(chatId), Number(messageId))
+      if (!started) {
+        await handleActionInline('reject', jobId, Number(chatId), Number(messageId))
+      }
     }
   } catch (e: any) {
     const detail = e?.response?.description || e?.message || 'Unknown error'
