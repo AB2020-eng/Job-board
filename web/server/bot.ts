@@ -32,20 +32,57 @@ async function resolveChannelId(ctx: any): Promise<number | string> {
   return Number.isFinite(n) && raw.startsWith('-') ? n : raw
 }
 
-function fireWorker(action: 'approve'|'reject', jobId: string, chatId: number, messageId: number) {
-  const base = String(process.env.BOT_PUBLIC_URL || '').replace(/\/+$/, '')
+function getPublicBaseUrl() {
+  const envBase = String(process.env.BOT_PUBLIC_URL || '').trim()
+  if (envBase) return envBase.replace(/\/+$/, '')
+  const vercel = String(process.env.VERCEL_URL || '').trim()
+  if (vercel) return `https://${vercel}`.replace(/\/+$/, '')
+  return ''
+}
+
+async function fireWorker(action: 'approve'|'reject', jobId: string, chatId: number, messageId: number) {
+  const base = getPublicBaseUrl()
   const secret = String(process.env.BOT_WEBHOOK_SECRET || '')
-  if (!base || !secret) return
+  if (!base || !secret) return false
   const url = `${base}/api/telegram/callback-worker?secret=${encodeURIComponent(secret)}`
   const payload = { action, jobId, admin_chat_id: chatId, admin_message_id: messageId }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    fetch(url, {
+    await withTimeout(fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload)
-    }).catch(() => {})
-  } catch {}
+    }), 2500, 'worker_timeout')
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function handleActionInline(action: 'approve'|'reject', jobId: string, chatId: number, messageId: number) {
+  if (action === 'approve') {
+    const updated = await updateJobStatus(String(jobId), 'active')
+    let title = (updated as any)?.Title || (updated as any)?.title || `Job ${jobId}`
+    let category = (updated as any)?.Category || (updated as any)?.category || ''
+    let salary = (updated as any)?.Salary || (updated as any)?.salary || ''
+    let description = (updated as any)?.Description || (updated as any)?.description || ''
+    try {
+      const job = await getJobById(String(jobId))
+      title = job.Title || title
+      category = job.Category || category
+      salary = job.Salary || salary
+      description = job.Description || description
+    } catch {}
+    const details = [category ? `Category: ${category}` : '', salary ? `Salary: ${salary}` : ''].filter(Boolean).join('\n')
+    const text = `💼 ${title}${details ? `\n${details}` : ''}\n\n${description}\n\nApply via Mini App`
+    const link = deepLink(jobId)
+    const keyboard = { reply_markup: { inline_keyboard: [[{ text: '💼 Apply via Mini App', url: link }]] } } as any
+    const channelId = await resolveChannelId({ telegram: bot.telegram })
+    await bot.telegram.sendMessage(channelId as any, text, keyboard)
+    await bot.telegram.editMessageText(chatId, messageId, undefined as any, `✅ Approved: ${title}`)
+  } else {
+    await updateJobStatus(String(jobId), 'rejected')
+    await bot.telegram.editMessageText(chatId, messageId, undefined as any, '❌ This job post was rejected.')
+  }
 }
 
 bot.on('callback_query', async (ctx) => {
@@ -73,7 +110,10 @@ bot.on('callback_query', async (ctx) => {
       const chatId = (ctx.callbackQuery as any)?.message?.chat?.id
       const messageId = (ctx.callbackQuery as any)?.message?.message_id
       if (chatId && messageId) {
-        fireWorker('approve', jobId, Number(chatId), Number(messageId))
+        const started = await fireWorker('approve', jobId, Number(chatId), Number(messageId))
+        if (!started) {
+          await withTimeout(handleActionInline('approve', jobId, Number(chatId), Number(messageId)), 9000, 'inline_timeout')
+        }
       }
       return
     } catch (e: any) {
@@ -87,7 +127,10 @@ bot.on('callback_query', async (ctx) => {
       const chatId = (ctx.callbackQuery as any)?.message?.chat?.id
       const messageId = (ctx.callbackQuery as any)?.message?.message_id
       if (chatId && messageId) {
-        fireWorker('reject', jobId, Number(chatId), Number(messageId))
+        const started = await fireWorker('reject', jobId, Number(chatId), Number(messageId))
+        if (!started) {
+          await withTimeout(handleActionInline('reject', jobId, Number(chatId), Number(messageId)), 9000, 'inline_timeout')
+        }
       }
       return
     } catch (e: any) {
@@ -99,6 +142,7 @@ bot.on('callback_query', async (ctx) => {
     try { await ctx.answerCbQuery('Unknown action') } catch {}
   }
 })
+
 
 export function notifyAdmin(job: { id: number | string; title: string; description: string; employer_username?: string }) {
   const text = `New Job: ${job.title} by @${job.employer_username || 'unknown'}\n${String(job.description || '').slice(0, 200)}`

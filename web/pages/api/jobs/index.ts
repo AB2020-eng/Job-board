@@ -5,7 +5,7 @@ import { notifyAdmin } from '../../../server/bot'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end()
-  const { title, description, employer_id, employer_username, tg_init_data } = req.body || {}
+  const { title, category, salary, description, employer_id, employer_username, tg_init_data } = req.body || {}
   const token = process.env.TELEGRAM_BOT_TOKEN as string | undefined
   const allowUnverified = String(process.env.ALLOW_UNVERIFIED_POSTS ?? 'true').toLowerCase() === 'true'
   const initDataStr = String(tg_init_data || '')
@@ -28,6 +28,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ID: String(id),
       Employer: String(employer_id || ''),
       Title: title,
+      Category: category,
+      Salary: salary,
       Description: description,
       Status: 'pending',
       Created_At: now.toISOString(),

@@ -11,7 +11,7 @@ function normalizeSpreadsheetId(input?: string) {
   return s
 }
 
-export const JOBS_HEADERS = ['ID', 'Employer', 'Title', 'Description', 'Status', 'Created_At', 'Expires_At']
+export const JOBS_HEADERS = ['ID', 'Employer', 'Title', 'Category', 'Salary', 'Description', 'Status', 'Created_At', 'Expires_At']
 export const APPLICATIONS_HEADERS = ['Job_ID', 'Seeker_Username', 'CV_File_ID', 'Applied_At']
 
 export async function getSheets() {
@@ -84,6 +84,8 @@ export async function addJobRow(record: {
   ID: string
   Employer: string
   Title: string
+  Category?: string
+  Salary?: string
   Description: string
   Status: string
   Created_At: string
@@ -177,6 +179,8 @@ export async function getJobById(jobId: string) {
   const findKey = (cands: string[]) => headers.find((h) => cands.map(norm).includes(norm(h)))
   const idKey = findKey(['ID', 'Id', 'id', 'Job_ID', 'Job Id', 'JobId']) || 'ID'
   const titleKey = findKey(['Title', 'title']) || 'Title'
+  const categoryKey = findKey(['Category', 'category']) || 'Category'
+  const salaryKey = findKey(['Salary', 'salary']) || 'Salary'
   const descKey = findKey(['Description', 'description']) || 'Description'
   const employerKey = findKey(['Employer', 'employer', 'Employer_ID', 'EmployerId']) || 'Employer'
   const statusKey = findKey(['Status', 'status', 'State']) || 'Status'
@@ -205,6 +209,8 @@ export async function getJobById(jobId: string) {
     ID: String(row[idKey]),
     Employer: row[employerKey],
     Title: row[titleKey],
+    Category: row[categoryKey],
+    Salary: row[salaryKey],
     Description: row[descKey],
     Status: row[statusKey],
     Created_At: row[createdKey],
