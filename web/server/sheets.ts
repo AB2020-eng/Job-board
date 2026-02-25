@@ -107,6 +107,32 @@ export async function addJobRow(record: {
   }
 }
 
+async function findRowByIdWithCells(jobs: GoogleSpreadsheetWorksheet, equalId: (val: any) => boolean) {
+  await jobs.loadCells()
+  const headerRowIndex = (jobs as any).headerRowIndex ?? 0
+  const rowCount = Number((jobs as any).rowCount || 0)
+  const columnCount = Number((jobs as any).columnCount || 0)
+  for (let r = headerRowIndex + 1; r < rowCount; r++) {
+    for (let c = 0; c < columnCount; c++) {
+      const cell = jobs.getCell(r, c)
+      if (equalId(cell?.value)) {
+        return r
+      }
+    }
+  }
+  return -1
+}
+
+function buildRowFromCells(jobs: GoogleSpreadsheetWorksheet, rowIndex: number, headers: string[]) {
+  const result: Record<string, any> = {}
+  for (let i = 0; i < headers.length; i++) {
+    const key = headers[i]
+    if (!key) continue
+    result[key] = jobs.getCell(rowIndex, i)?.value
+  }
+  return result
+}
+
 export async function updateJobStatus(jobId: string, status: string) {
   const { jobs } = await getSheets()
   const idSan = String(jobId || '').replace(/[^0-9]/g, '')
@@ -154,7 +180,21 @@ export async function updateJobStatus(jobId: string, status: string) {
       row = rows.find((r: any) => matchesRow(r)) as any
     }
   }
-  if (!row) throw new Error('not_found')
+  if (!row) {
+    const rowIndex = await findRowByIdWithCells(jobs, equalId)
+    if (rowIndex >= 0) {
+      const statusIdx = headers.findIndex((h) => norm(h) === norm(statusKey))
+      if (statusIdx >= 0) {
+        const statusCell = jobs.getCell(rowIndex, statusIdx)
+        statusCell.value = status
+        await jobs.saveUpdatedCells()
+      }
+      const built = buildRowFromCells(jobs, rowIndex, headers)
+      built[statusKey] = status
+      return built
+    }
+    throw new Error('not_found')
+  }
   row[statusKey] = status
   await row.save()
   return row
@@ -214,7 +254,24 @@ export async function getJobById(jobId: string) {
       row = rows.find((r: any) => matchesRow2(r)) as any
     }
   }
-  if (!row) throw new Error('not_found')
+  if (!row) {
+    const rowIndex = await findRowByIdWithCells(jobs, equalId2)
+    if (rowIndex >= 0) {
+      const built = buildRowFromCells(jobs, rowIndex, headers)
+      return {
+        ID: String(built[idKey] ?? ''),
+        Employer: built[employerKey],
+        Title: built[titleKey],
+        Category: built[categoryKey],
+        Salary: built[salaryKey],
+        Description: built[descKey],
+        Status: built[statusKey],
+        Created_At: built[createdKey],
+        Expires_At: built[expiresKey]
+      }
+    }
+    throw new Error('not_found')
+  }
   return {
     ID: String(row[idKey]),
     Employer: row[employerKey],
