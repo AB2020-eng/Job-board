@@ -47,11 +47,12 @@ async function fireWorker(action: 'approve'|'reject', jobId: string, chatId: num
   const url = `${base}/api/telegram/callback-worker?secret=${encodeURIComponent(secret)}`
   const payload = { action, jobId, admin_chat_id: chatId, admin_message_id: messageId }
   try {
-    await withTimeout(fetch(url, {
+    const res = await withTimeout(fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload)
-    }), 2500, 'worker_timeout')
+    }), 4000, 'worker_timeout')
+    if (!res.ok) return false
     return true
   } catch {
     return false
