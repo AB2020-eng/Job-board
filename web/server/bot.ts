@@ -61,21 +61,11 @@ async function fireWorker(action: 'approve'|'reject', jobId: string, chatId: num
 
 async function handleActionInline(action: 'approve'|'reject', jobId: string, chatId: number, messageId: number) {
   if (action === 'approve') {
-    let updated: any = {}
-    try {
-      updated = await updateJobStatus(String(jobId), 'active')
-    } catch {}
-    let title = (updated as any)?.Title || (updated as any)?.title || `Job ${jobId}`
-    let category = (updated as any)?.Category || (updated as any)?.category || ''
-    let salary = (updated as any)?.Salary || (updated as any)?.salary || ''
-    let description = (updated as any)?.Description || (updated as any)?.description || ''
-    try {
-      const job = await getJobById(String(jobId))
-      title = job.Title || title
-      category = job.Category || category
-      salary = job.Salary || salary
-      description = job.Description || description
-    } catch {}
+    const job = await getJobById(String(jobId))
+    const title = job.Title || `Job ${jobId}`
+    const category = job.Category || ''
+    const salary = job.Salary || ''
+    const description = job.Description || ''
     const details = [category ? `Category: ${category}` : '', salary ? `Salary: ${salary}` : ''].filter(Boolean).join('\n')
     const text = `💼 ${title}${details ? `\n${details}` : ''}\n\n${description}\n\nApply via Mini App`
     const link = deepLink(jobId)
@@ -84,9 +74,6 @@ async function handleActionInline(action: 'approve'|'reject', jobId: string, cha
     await bot.telegram.sendMessage(channelId as any, text, keyboard)
     await bot.telegram.editMessageText(chatId, messageId, undefined as any, `✅ Approved: ${title}`)
   } else {
-    try {
-      await updateJobStatus(String(jobId), 'rejected')
-    } catch {}
     await bot.telegram.editMessageText(chatId, messageId, undefined as any, '❌ This job post was rejected.')
   }
 }

@@ -16,21 +16,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   try {
     if (action === 'approve') {
-      let updated: any = {}
-      try {
-        updated = await updateJobStatus(String(jobId), 'active')
-      } catch {}
-      let title = (updated as any)?.Title || (updated as any)?.title || `Job ${jobId}`
-      let category = (updated as any)?.Category || (updated as any)?.category || ''
-      let salary = (updated as any)?.Salary || (updated as any)?.salary || ''
-      let description = (updated as any)?.Description || (updated as any)?.description || ''
-      try {
-        const job = await getJobById(String(jobId))
-        title = job.Title || title
-        category = job.Category || category
-        salary = job.Salary || salary
-        description = job.Description || description
-      } catch {}
+      const job = await getJobById(String(jobId))
+      const title = job.Title || `Job ${jobId}`
+      const category = job.Category || ''
+      const salary = job.Salary || ''
+      const description = job.Description || ''
       const details = [category ? `Category: ${category}` : '', salary ? `Salary: ${salary}` : ''].filter(Boolean).join('\n')
       const text = `💼 ${title}${details ? `\n${details}` : ''}\n\n${description}\n\nApply via Mini App`
       const link = `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}?startapp=jobId_${jobId}`
@@ -41,9 +31,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await bot.telegram.editMessageText(chatId, msgId, undefined as any, `✅ Approved: ${title}`)
       return res.json({ ok: true })
     } else if (action === 'reject') {
-      try {
-        await updateJobStatus(String(jobId), 'rejected')
-      } catch {}
       await bot.telegram.editMessageText(chatId, msgId, undefined as any, '❌ This job post was rejected.')
       return res.json({ ok: true })
     } else {
